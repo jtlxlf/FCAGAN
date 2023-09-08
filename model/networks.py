@@ -98,6 +98,12 @@ def  define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, i
         raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
 
+class FCA(nn.Module):
+    def  __init__(self, ngf=64, use_dropout=False, n_blocks=6):
+        super(FCA, self).__init__()
+        ##
+    def forward(self, inp):
+        ##
 
 def define_D(input_nc, ndf, netD, n_layers_D, norm='batch', init_type='normal', init_gain=0.02, gpu_ids=[], use_spectral_norm=False):
     norm_layer = get_norm_layer(norm_type=norm)
