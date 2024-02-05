@@ -71,5 +71,6 @@ Dataset
         ```
 
 2. Train FCAGAN
-   
-3. Inference and evaluation
+   python train.py --dataroot .\datasets --model FCA_model --name testfca --no_dropout --batch_size 64,128,...  --gpu_ids 0,1,...
+3. Inference FCAGAN
+   python test.py ---dataroot .\datasets --model FCA_model --name testfca  --phase test_unknown_content
