@@ -26,3 +26,7 @@ scikit-learn
 pytorch-fid
 art-fid
 ```
+
+Dataset
+--------------
+[方正字库](https://www.foundertype.com/index.php/FindFont/index) [汉仪字体] [蒙纳字体] [新蒂字体]  [造字工房] etc. provides free font download for non-commercial users.
