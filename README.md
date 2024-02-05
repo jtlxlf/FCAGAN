@@ -69,3 +69,7 @@ Dataset
         │       │   ├── char2.png
         │       │   ├── ...
         ```
+
+2. Train FCAGAN
+   
+3. Inference and evaluation
