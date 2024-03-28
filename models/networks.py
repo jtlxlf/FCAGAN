@@ -169,7 +169,7 @@ class NLayerDiscriminatorSstyle(nn.Module):
         st = self.fc2(style_features)
         weight = self.softmax2(st.detach())
         return [ weight,nor1,nor2,nor3]
-      class GANLoss(nn.Module):
+class GANLoss(nn.Module):
     def __init__(self, gan_mode, target_real_label=1.0, target_fake_label=0.0):
         super(GANLoss, self).__init__()
         self.register_buffer('real_label', torch.tensor(target_real_label))
