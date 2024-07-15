@@ -1,7 +1,7 @@
 # FCAGAN
 This is the implementation for the paper:
 
-**Cross-Lingual Font Style Transfer with Full-Domain Convolutional Attention（Pattern Recognitio 2024）**
+**Cross-Lingual Font Style Transfer with Full-Domain Convolutional Attention（Pattern Recognition 2024）**
 
 By Hui-huang Zhao*, Tian-le Ji, Paul L. Rosin, Yu-Kun Lai, Wei-liang Meng, Yao-nan Wang
 
