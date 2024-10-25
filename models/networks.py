@@ -105,9 +105,9 @@ class FCA(nn.Module):
         self.style_encoder = FCA_Encoder(input_nc=1, ngf=ngf)
         self.content_encoder = FCA_Encoder(input_nc=1, ngf=ngf)
         self.decoder = FCA_Decoder(use_dropout=use_dropout, n_blocks=n_blocks, ngf=ngf)
-        self.local_atten_1 = FCA_Local_Atten(ngf=ngf)
-        self.local_atten_2 = FCA_Local_Atten(ngf=ngf)
-        self.local_atten_3 = FCA_Local_Atten(ngf=ngf)
+        self.local_atten_1 = FCA_Atten(ngf=ngf)
+        self.local_atten_2 = FCA_Atten(ngf=ngf)
+        self.local_atten_3 = FCA_Atten(ngf=ngf)
         # self.local_atten_1 = AttentionModule2(dim=ngf*4)
         # self.local_atten_2 = AttentionModule2(dim=ngf*4)
         # self.local_atten_3 = AttentionModule2(dim=ngf*4)
@@ -148,7 +148,7 @@ class FCA(nn.Module):
         outp = self.decoder(feature)
         return outp
         
-class FCA_Local_Atten(nn.Module):
+class FCA_Atten(nn.Module):
     def   __init__(self, ngf=64):
         super(FCA_Local_Atten, self).__init__() 
         self.self_atten = FCA_attention_module(ngf*4)
