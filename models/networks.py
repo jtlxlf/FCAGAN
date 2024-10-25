@@ -98,13 +98,141 @@ def  define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, i
         raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
 
-class FCA(nn.Module):
-    def  __init__(self, ngf=64, use_dropout=False, n_blocks=6):
-        super(FCA, self).__init__()
-        ##
-    def forward(self, inp):
-        ##
 
+class FCA(nn.Module):
+    def    __init__(self, ngf=64, use_dropout=False, n_blocks=6):
+        super(FCA, self).__init__()
+        self.style_encoder = FCA_Encoder(input_nc=1, ngf=ngf)
+        self.content_encoder = FCA_Encoder(input_nc=1, ngf=ngf)
+        self.decoder = FCA_Decoder(use_dropout=use_dropout, n_blocks=n_blocks, ngf=ngf)
+        self.local_atten_1 = FCA_Local_Atten(ngf=ngf)
+        self.local_atten_2 = FCA_Local_Atten(ngf=ngf)
+        self.local_atten_3 = FCA_Local_Atten(ngf=ngf)
+        # self.local_atten_1 = AttentionModule2(dim=ngf*4)
+        # self.local_atten_2 = AttentionModule2(dim=ngf*4)
+        # self.local_atten_3 = AttentionModule2(dim=ngf*4)
+
+        self.layer_atten = FCA_Layer_Atten(ngf=ngf)
+
+        self.downsample_1 = nn.Sequential(nn.Conv2d(ngf * 4, ngf * 4, kernel_size=3, stride=2, padding=1, bias=False),
+                          nn.BatchNorm2d(ngf * 4),
+                          nn.ReLU(True)
+                          )
+        self.downsample_2 = nn.Sequential(nn.Conv2d(ngf * 4, ngf * 4, kernel_size=3, stride=2, padding=1, bias=False),
+                          nn.BatchNorm2d(ngf * 4),
+                          nn.ReLU(True)
+                          )
+
+    def forward(self, inp):
+        content_image, style_images = inp
+        B, K, _, _ = style_images.shape
+
+        content_feature = self.content_encoder(content_image)
+
+        style_features = self.style_encoder(style_images.view(-1, 1, 64, 64))
+
+        # style_features= torch.mean(style_features.view(B, K, 256, 16 , 16), dim=1)
+
+
+        style_features_1 = self.local_atten_1(style_features)
+
+        style_features = self.downsample_1(style_features)
+        style_features_2 = self.local_atten_2(style_features)
+
+        style_features = self.downsample_2(style_features)
+        style_features_3 = self.local_atten_3(style_features)
+
+        style_features = self.layer_atten(style_features, style_features_1, style_features_2, style_features_3, B, K)
+        # style_features = torch.mean(style_features.view(B, K, 256, 16, 16), dim=1)
+        feature = torch.cat([content_feature, style_features], dim=1)
+        outp = self.decoder(feature)
+        return outp
+        
+class FCA_Local_Atten(nn.Module):
+    def   __init__(self, ngf=64):
+        super(FCA_Local_Atten, self).__init__() 
+        self.self_atten = FCA_attention_module(ngf*4)
+        self.attention = nn.Linear(ngf*4, 100)
+        self.context_vec = nn.Linear(100, 1, bias=False)
+        self.softmax  = nn.Softmax(dim=1)
+        self.elu = nn.ELU()
+    def forward(self, style_features):
+        B, C, H, W= style_features.shape
+        h = self.self_atten(style_features)
+        h = h.permute(0, 2, 3, 1).reshape(-1, C)
+        h = self.elu(self.attention(h))                                   # (B*H*W, 100)
+        h = self.context_vec(h)                                             # (B*H*W, 1)
+        attention_map = self.softmax(h.view(B, H*W)).view(B, 1, H, W)       # (B, 1, H, W)
+        style_features = torch.sum(  style_features*attention_map, dim=[2, 3])
+        return style_features
+
+class FCA_Encoder(nn.Module):
+    def __init__(self, input_nc, ngf=64):
+        super(FCA_Encoder, self).__init__()
+        model = [nn.ReflectionPad2d(3),
+                 nn.Conv2d(input_nc, ngf, kernel_size=7, padding=0, bias=False),
+                 nn.BatchNorm2d(ngf),
+                 nn.ReLU(True)]
+        for i in range(2):  # add downsampling layers
+            mult = 2 ** i
+            model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=2, padding=1, bias=False),
+                      nn.BatchNorm2d(ngf * mult * 2),
+                      nn.ReLU(True)
+                      ]
+        self.model = nn.Sequential(*model)
+        
+    def forward(self, inp):
+        return self.model(inp)
+    
+class FCA_Decoder(nn.Module):
+    def __init__(self, use_dropout=False, n_blocks=6, ngf=64):
+        super(FCA_Decoder, self).__init__()
+        model = []
+        for i in range(n_blocks):       # add ResNet blocks
+            model += [ResnetBlock(ngf*8, padding_type='reflect', norm_layer=nn.BatchNorm2d, use_dropout=use_dropout, use_bias=False)]
+        for i in range(2):  # add upsampling layers
+            mult = 2 ** (3 - i)
+            model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
+                                         kernel_size=3, stride=2,
+                                         padding=1, output_padding=1,
+                                         bias=False),
+                      nn.BatchNorm2d(int(ngf * mult / 2)),
+                      nn.ReLU(True)]
+        model += [nn.ReflectionPad2d(3)]
+        model += [nn.Conv2d(ngf*2, 1, kernel_size=7, padding=0)]
+        model += [nn.Tanh()]
+        self.model = nn.Sequential(*model)
+        
+    def forward(self, inp):
+        return self.model(inp)
+        
+class FCA_Layer_Atten(nn.Module):
+    def __init__(self, ngf=64):
+        super(FCA_Layer_Atten, self).__init__()
+        self.ngf = ngf
+        self.fc = nn.Linear(4096, 3)
+        self.softmax  = nn.Softmax(dim=1)
+        # self.trans = transforms.ToTensor()
+        # self.pca = PCA(n_components=3)
+        
+    def forward(self, style_features, style_features_1, style_features_2, style_features_3, B, K):
+        
+        style_features = torch.mean(style_features.view(B, K, self.ngf*4, 4, 4), dim=1)
+        style_features = style_features.view(B, -1)
+        wei = self.fc(style_features)
+        # st = self.pca.fit_transform(style_features)
+        # wei = self.trans(st)
+        weight = self.softmax(wei)
+        
+        style_features_1 = torch.mean(style_features_1.view(B, K, self.ngf*4), dim=1)
+        style_features_2 = torch.mean(style_features_2.view(B, K, self.ngf*4), dim=1)
+        style_features_3 = torch.mean(style_features_3.view(B, K, self.ngf*4), dim=1)
+        
+        style_features = (style_features_1*weight.narrow(1, 0, 1)+
+                          style_features_2*weight.narrow(1, 1, 1)+
+                          style_features_3*weight.narrow(1, 2, 1)).view(B, self.ngf*4, 1, 1)+torch.randn([B, self.ngf*4, 16, 16], device='cuda')*0.02
+        return style_features
+        
 def define_D(input_nc, ndf, netD, n_layers_D, norm='batch', init_type='normal', init_gain=0.02, gpu_ids=[], use_spectral_norm=False):
     norm_layer = get_norm_layer(norm_type=norm)
     if netD == 'basic':  # default PatchGAN classifier Receptive Field = 70
