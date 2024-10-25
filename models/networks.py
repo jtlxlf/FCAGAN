@@ -343,19 +343,31 @@ class ResnetBlock(nn.Module)
 class FCA_attention_module(nn.Module):
     def  __init__(self, dim):
         super().__init__()
-      #FCA_Conv
-        sequence_i = [,]
-             
-        self.model_i = nn.Sequential(*sequence_i)
+
+        sequence16_16 = [nn.Conv2d(dim, dim, 5, padding=2, groups=dim),
+                         nn.Conv2d(dim, dim, 11, stride=1, padding=15, groups=dim, dilation=3),
+                         nn.Conv2d(dim, dim, 1)]
+
+        sequence8_8  = [nn.Conv2d(dim, dim, 5, padding=2, groups=dim),
+                       nn.Conv2d(dim, dim, 5, stride=1, padding=6, groups=dim, dilation=3),
+                       nn.Conv2d(dim, dim, 1)]
+
+        sequence4_4 = [nn.Conv2d(dim, dim, 7, padding=3, groups=dim), nn.Conv2d(dim, dim, 1)]
+        self.model16_16= nn.Sequential(*sequence16_16)
+        self.model8_8 = nn.Sequential(*sequence8_8)
+        self.model4_4 = nn.Sequential(*sequence4_4)
 
         self.wtj = nn.Parameter(torch.tensor([1,1],dtype=torch.float),requires_grad=True)
 
     def forward(self, x):
         u = x.clone()
         B,C,W,H = x.shape
-        if W == []:
-            attn =self.model_i(u)
-       
+        if W == 4:
+            attn =self.model4_4(u)
+        elif W == 8:
+            attn = self.model8_8(u)
+        elif W == 16:
+            attn = self.model16_16(u)
         else:
             print("FCA——others")
         w1 = torch.exp(self.wtj[0])/torch.sum(torch.exp(self.wtj))
