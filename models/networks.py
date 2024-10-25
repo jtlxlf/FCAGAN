@@ -7,7 +7,7 @@ from torch.optim import lr_scheduler
 from torch.autograd import Variable
 import functools
 import numpy as np
-from sklearn.decomposition import PCA
+#from sklearn.decomposition import PCA
 from torchvision import transforms
 
 class Identity(nn.Module):
